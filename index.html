@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PermitScope — Environmental Permit Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d1117;--surface:#161b22;--surface2:#1c2330;--border:#30363d;
+    --accent:#3fb950;--accent2:#58a6ff;--warn:#e3b341;--danger:#f85149;
+    --text:#e6edf3;--text-muted:#8b949e;--text-dim:#484f58;
+    --mono:'DM Mono',monospace;--serif:'Fraunces',serif;--sans:'DM Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(63,185,80,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(63,185,80,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+  body::after{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(63,185,80,.07) 0%,transparent 70%);pointer-events:none;z-index:0}
+  .wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 24px}
+
+  header{border-bottom:1px solid var(--border);padding:18px 0;backdrop-filter:blur(10px);position:sticky;top:0;z-index:100;background:rgba(13,17,23,.88)}
+  .hdr{display:flex;align-items:center;justify-content:space-between}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#3fb950,#1a7f37);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px}
+  .logo-text{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.5px}
+  .logo-text span{color:var(--accent)}
+  .badge{font-family:var(--mono);font-size:10px;background:rgba(63,185,80,.15);color:var(--accent);border:1px solid rgba(63,185,80,.3);padding:3px 8px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase}
+
+  .hero{padding:48px 0 36px;text-align:center}
+  .hero-tag{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin-bottom:18px;opacity:0;animation:fadeUp .6s ease forwards .1s}
+  .hero h1{font-family:var(--serif);font-size:clamp(30px,5vw,52px);font-weight:300;line-height:1.1;letter-spacing:-1px;margin-bottom:14px;opacity:0;animation:fadeUp .6s ease forwards .2s}
+  .hero h1 em{font-style:italic;color:var(--accent)}
+  .hero>p{font-size:15px;color:var(--text-muted);max-width:500px;margin:0 auto 28px;line-height:1.7;font-weight:300;opacity:0;animation:fadeUp .6s ease forwards .3s}
+
+  .apikey-wrap{max-width:580px;margin:0 auto 20px;opacity:0;animation:fadeUp .6s ease forwards .35s}
+  .apikey-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 22px;text-align:left}
+  .apikey-label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:10px}
+  .req{color:var(--danger)}
+  .apikey-row{display:flex;gap:10px;margin-bottom:10px}
+  .apikey-row input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:13px;padding:10px 14px;outline:none;transition:border-color .2s}
+  .apikey-row input:focus{border-color:var(--accent2)}
+  .apikey-row input::placeholder{color:var(--text-dim)}
+  .apikey-hint{font-size:12px;color:var(--text-dim);line-height:1.5}
+  .apikey-hint a{color:var(--accent2);text-decoration:none}
+  #test-result{margin-top:10px;font-size:12px;font-family:var(--mono);line-height:1.5}
+  #test-result.ok{color:var(--accent)} #test-result.fail{color:var(--danger)}
+
+  .upload-zone{border:1.5px dashed var(--border);border-radius:16px;padding:44px 36px;text-align:center;cursor:pointer;transition:all .25s;background:rgba(22,27,34,.6);position:relative;max-width:580px;margin:0 auto;opacity:0;animation:fadeUp .6s ease forwards .45s}
+  .upload-zone:hover,.upload-zone.over{border-color:var(--accent);background:rgba(63,185,80,.05);transform:translateY(-2px);box-shadow:0 0 40px rgba(63,185,80,.1)}
+  .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .upload-icon{width:58px;height:58px;margin:0 auto 16px;background:rgba(63,185,80,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid rgba(63,185,80,.2)}
+  .upload-zone h3{font-family:var(--serif);font-weight:600;font-size:18px;margin-bottom:6px}
+  .upload-zone p{font-size:13px;color:var(--text-muted);font-weight:300;margin-bottom:16px}
+  .file-types{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .ftag{font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:4px;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)}
+
+  #error-msg{max-width:580px;margin:14px auto 0}
+  .err-box{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:10px;padding:14px 18px;color:var(--danger);font-size:13px;line-height:1.6;font-family:var(--mono);word-break:break-word}
+
+  #progress-section{display:none;max-width:580px;margin:32px auto}
+  .prog-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px 28px}
+  .prog-hdr{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pulse 1.5s infinite}
+  .prog-label{font-family:var(--mono);font-size:13px;color:var(--text-muted)}
+  .steps{display:flex;flex-direction:column;gap:10px}
+  .step{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--text-dim);transition:all .3s}
+  .step.active{color:var(--text)} .step.done{color:var(--accent)}
+  .step-icon{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--text-dim);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:all .3s}
+  .step.active .step-icon{border-color:var(--accent2);background:rgba(88,166,255,.1);color:var(--accent2)}
+  .step.done .step-icon{border-color:var(--accent);background:rgba(63,185,80,.15);color:var(--accent)}
+
+  #results-section{display:none;padding:0 0 64px}
+  .res-hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid var(--border)}
+  .res-title{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:-.5px;margin-bottom:5px}
+  .res-meta{font-family:var(--mono);font-size:12px;color:var(--text-muted)}
+  .res-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;font-family:var(--sans)}
+  .btn-sec{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+  .btn-sec:hover{background:var(--surface);border-color:var(--text-muted)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:15px 18px}
+  .stat-val{font-family:var(--serif);font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;margin-bottom:5px}
+  .stat-lbl{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+
+  .summary{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:16px 20px;margin-bottom:22px;font-size:14px;line-height:1.7;color:var(--text-muted)}
+  .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .flbl{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-right:4px}
+  .fbtn{padding:5px 14px;border-radius:20px;font-size:12px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);transition:all .2s}
+  .fbtn.active,.fbtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(63,185,80,.08)}
+
+  .tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  thead{background:var(--surface2);border-bottom:1px solid var(--border)}
+  th{padding:12px 16px;text-align:left;font-family:var(--mono);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);white-space:nowrap}
+  td{padding:14px 16px;font-size:13px;vertical-align:top;border-bottom:1px solid rgba(48,54,61,.6);line-height:1.6}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .cite{font-family:var(--mono);font-size:12px;color:var(--accent2);white-space:nowrap}
+  .pbadge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-family:var(--mono);font-size:11px;font-weight:500;white-space:nowrap}
+  .ph{background:rgba(248,81,73,.15);color:var(--danger);border:1px solid rgba(248,81,73,.3)}
+  .pm{background:rgba(227,179,65,.15);color:var(--warn);border:1px solid rgba(227,179,65,.3)}
+  .pl{background:rgba(63,185,80,.12);color:var(--accent);border:1px solid rgba(63,185,80,.25)}
+  .ctag{display:inline-block;padding:2px 9px;border-radius:4px;font-family:var(--mono);font-size:11px;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)}
+  .freq{font-family:var(--mono);font-size:12px;color:var(--text-muted)}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+  @media(max-width:700px){th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hdr">
+    <div class="logo">
+      <div class="logo-icon">🌿</div>
+      <div class="logo-text">Permit<span>Scope</span></div>
+    </div>
+    <span class="badge">Environmental AI</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- UPLOAD -->
+  <div class="hero" id="hero-section">
+    <div class="hero-tag">Environmental Compliance Intelligence</div>
+    <h1>Parse permits into<br><em>actionable obligations</em></h1>
+    <p>Upload any environmental permit — air, water, hazardous waste, stormwater — and get a structured table of every compliance action, deadline, and requirement with citations.</p>
+
+    <div class="apikey-wrap">
+      <div class="apikey-card">
+        <div class="apikey-label">🔑 Anthropic API Key &nbsp;<span class="req">* required</span></div>
+        <div class="apikey-row">
+          <input type="password" id="api-key" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false" />
+          <button class="btn btn-sec" onclick="testKey()">Test Key</button>
+        </div>
+        <div class="apikey-hint">Sent only to this server — never stored. Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</div>
+        <div id="test-result"></div>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="file-input" accept=".pdf,.txt,.doc,.docx" />
+      <div class="upload-icon">📄</div>
+      <h3>Drop your permit file here</h3>
+      <p>or click to browse — PDF recommended</p>
+      <div class="file-types">
+        <span class="ftag">.PDF</span><span class="ftag">.TXT</span><span class="ftag">.DOC</span><span class="ftag">.DOCX</span>
+      </div>
+    </div>
+    <div id="error-msg"></div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="progress-section">
+    <div class="prog-card">
+      <div class="prog-hdr"><div class="dot"></div><div class="prog-label">Analyzing permit…</div></div>
+      <div class="steps">
+        <div class="step" id="s1"><div class="step-icon">1</div><span>Reading file</span></div>
+        <div class="step" id="s2"><div class="step-icon">2</div><span>Identifying permit structure &amp; sections</span></div>
+        <div class="step" id="s3"><div class="step-icon">3</div><span>Parsing compliance obligations &amp; conditions</span></div>
+        <div class="step" id="s4"><div class="step-icon">4</div><span>Extracting deadlines, frequencies &amp; citations</span></div>
+        <div class="step" id="s5"><div class="step-icon">5</div><span>Building actionable compliance table</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-section">
+    <div class="res-hdr">
+      <div>
+        <div class="res-title" id="r-name">Permit Analysis</div>
+        <div class="res-meta" id="r-meta"></div>
+      </div>
+      <div class="res-actions">
+        <button class="btn btn-sec" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btn btn-sec" onclick="startOver()">↩ New Permit</button>
+      </div>
+    </div>
+    <div class="summary" id="r-summary"></div>
+    <div class="stats" id="r-stats"></div>
+    <div class="filters">
+      <span class="flbl">Filter:</span>
+      <button class="fbtn active" onclick="filter('all',this)">All</button>
+      <button class="fbtn" onclick="filter('High',this)">🔴 High</button>
+      <button class="fbtn" onclick="filter('Medium',this)">🟡 Medium</button>
+      <button class="fbtn" onclick="filter('Low',this)">🟢 Low</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Citation / Section</th><th>Requirement / Action</th>
+          <th>Category</th><th>Frequency / Deadline</th><th>Priority</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+let allItems = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const delay = ms => new Promise(r => setTimeout(r, ms));
+const key = () => $('api-key').value.trim();
+
+async function testKey() {
+  const k = key();
+  const el = $('test-result');
+  if (!k) { el.className='fail'; el.textContent='⚠ Enter an API key first.'; return; }
+  el.className=''; el.textContent='Testing…';
+  try {
+    const r = await fetch('/api/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key:k, test:true }) });
+    const d = await r.json();
+    if (d.error) { el.className='fail'; el.textContent='✗ '+d.error; }
+    else { el.className='ok'; el.textContent='✓ Key valid — ready to analyze!'; }
+  } catch(e) { el.className='fail'; el.textContent='✗ '+e.message; }
+}
+
+// Upload
+const zone = $('upload-zone'), fi = $('file-input');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); if (e.dataTransfer.files[0]) go(e.dataTransfer.files[0]); });
+fi.addEventListener('change', e => { if (e.target.files[0]) go(e.target.files[0]); });
+
+async function go(file) {
+  if (!key()) { showErr('Enter your Anthropic API key first.'); return; }
+  showErr('');
+  $('upload-zone').style.display = 'none';
+  $('progress-section').style.display = 'block';
+  setStep(1);
+
+  try {
+    const content = await readFile(file);
+    setStep(2); await delay(300);
+    setStep(3); await delay(300);
+    setStep(4);
+
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: key(), content, filename: file.name }),
+    });
+
+    if (!res.ok) throw new Error('Server error ' + res.status + ' — check Vercel logs.');
+
+    // Read SSE stream
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', result = null, err = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data:')) continue;
+        try {
+          const evt = JSON.parse(line.slice(5).trim());
+          if (evt.error) err = evt.error;
+          if (evt.result) { result = evt.result; setStep(5); }
+        } catch {}
+      }
+    }
+
+    if (err) throw new Error(err);
+    if (!result) throw new Error('No result received. Please try again.');
+
+    await delay(300);
+    render(result);
+
+  } catch(e) {
+    showErr(e.message);
+    $('progress-section').style.display = 'none';
+    $('upload-zone').style.display = 'block';
+    fi.value = '';
+  }
+}
+
+function readFile(file) {
+  return new Promise((res, rej) => {
+    const pdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    const r = new FileReader();
+    r.onerror = rej;
+    if (pdf) { r.onload = e => res({ type:'pdf', data: e.target.result.split(',')[1] }); r.readAsDataURL(file); }
+    else      { r.onload = e => res({ type:'text', data: e.target.result }); r.readAsText(file); }
+  });
+}
+
+function setStep(n) {
+  for (let i = 1; i < n; i++) {
+    const s = $('s'+i); s.className = 'step done';
+    s.querySelector('.step-icon').textContent = '✓';
+  }
+  if (n <= 5) {
+    const s = $('s'+n); s.className = 'step active';
+    s.querySelector('.step-icon').innerHTML = '<span style="font-size:8px">⟳</span>';
+  }
+}
+
+function render(data) {
+  allItems = data.items || [];
+  $('progress-section').style.display = 'none';
+  $('hero-section').style.display = 'none';
+  $('results-section').style.display = 'block';
+
+  $('r-name').textContent = data.permit_name || 'Permit Analysis';
+  $('r-meta').textContent = [data.permit_type, data.permit_number, data.issuing_authority].filter(Boolean).join(' · ');
+  $('r-summary').textContent = data.summary || '';
+
+  const h = allItems.filter(i=>i.priority==='High').length;
+  const m = allItems.filter(i=>i.priority==='Medium').length;
+  const l = allItems.filter(i=>i.priority==='Low').length;
+  const c = new Set(allItems.map(i=>i.category)).size;
+  $('r-stats').innerHTML = [
+    [allItems.length,'Total Actions','var(--text)'],
+    [h,'High Priority','var(--danger)'],
+    [m,'Medium Priority','var(--warn)'],
+    [l,'Low Priority','var(--accent)'],
+    [c,'Categories','var(--accent2)'],
+  ].map(([v,lbl,col])=>`<div class="stat"><div class="stat-val" style="color:${col}">${v}</div><div class="stat-lbl">${lbl}</div></div>`).join('');
+
+  renderTable(allItems);
+}
+
+function renderTable(items) {
+  if (!items.length) { $('tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">No items.</td></tr>'; return; }
+  $('tbody').innerHTML = items.map((item,i) => `
+    <tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text-dim);width:36px">${String(item.id||i+1).padStart(2,'0')}</td>
+      <td class="cite" style="min-width:110px">
+        <div>${esc(item.citation||'—')}</div>
+        ${item.subsection?`<div style="color:var(--text-dim);font-size:11px;margin-top:2px">${esc(item.subsection)}</div>`:''}
+      </td>
+      <td style="min-width:250px">
+        <div>${esc(item.requirement||'')}</div>
+        ${item.notes?`<div style="font-size:12px;color:var(--text-muted);margin-top:5px;font-style:italic">${esc(item.notes)}</div>`:''}
+      </td>
+      <td><span class="ctag">${esc(item.category||'Other')}</span></td>
+      <td class="freq">${esc(item.frequency||'—')}</td>
+      <td><span class="pbadge ${item.priority==='High'?'ph':item.priority==='Medium'?'pm':'pl'}">${item.priority==='High'?'🔴':item.priority==='Medium'?'🟡':'🟢'} ${esc(item.priority||'Low')}</span></td>
+    </tr>`).join('');
+}
+
+function filter(p, btn) {
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(p==='all' ? allItems : allItems.filter(i=>i.priority===p));
+}
+
+function exportCSV() {
+  const h = ['ID','Citation','Subsection','Requirement','Category','Frequency','Priority','Responsible Party','Notes'];
+  const rows = allItems.map(i=>[i.id,i.citation,i.subsection,i.requirement,i.category,i.frequency,i.priority,i.responsible_party,i.notes].map(v=>`"${String(v||'').replace(/"/g,'""')}"`));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([[h.join(','),...rows.map(r=>r.join(','))].join('\n')],{type:'text/csv'}));
+  a.download = 'permit_actions.csv'; a.click();
+}
+
+function showErr(msg) {
+  $('error-msg').innerHTML = msg ? `<div class="err-box">⚠ ${esc(msg)}</div>` : '';
+}
+
+function startOver() {
+  $('results-section').style.display = 'none';
+  $('hero-section').style.display = 'block';
+  $('upload-zone').style.display = 'block';
+  fi.value = ''; allItems = [];
+}
+</script>
+</body>
+</html>
